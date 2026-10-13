@@ -1,0 +1,11 @@
+services:
+  vuln-notes:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - FLAG=CTF{cors_sqli_and_design_failures}
+    volumes:
+      # Mount only runme.js so you can edit it on the host and the change is
+      # served immediately — no container restart or rebuild needed.
+      - ./public/runme.js:/app/public/runme.js

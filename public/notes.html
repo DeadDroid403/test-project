@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JS Runner — Vuln Notes</title><link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="card notes-card">
+    <div class="topline"><div><p class="eyebrow">JS RUNNER</p><h1 id="title">JavaScript Console</h1></div><a href="/">Log out</a></div>
+    <p class="subtle">Type any JavaScript below and hit <strong>Run</strong>. Outputs and errors appear in the panel.</p>
+
+    <form id="js-form">
+      <textarea id="js-code" placeholder="// write your JS here&#10;console.log('hello, world!');" spellcheck="false"></textarea>
+      <button type="submit">▶ Run</button>
+    </form>
+
+    <div id="js-output-wrapper">
+      <div class="topline" style="margin-bottom:6px">
+        <p class="eyebrow" style="margin:0">OUTPUT</p>
+        <button type="button" id="js-clear" class="btn-clear">Clear</button>
+      </div>
+      <pre id="js-output"><span class="empty">No output yet.</span></pre>
+    </div>
+
+    <div class="runme-bar">
+      <button type="button" id="run-runme-btn">⚡ Fetch &amp; Run runme.js</button>
+      <span class="subtle" style="font-size:.8rem">Grabs <code>/runme.js</code> fresh each click and executes it — output appears in the panel above.</span>
+    </div>
+
+    <h2>Notes</h2>
+    <p class="subtle">Write a note and hit <strong>Save</strong>.</p>
+    <form id="note-form">
+      <textarea id="note-text" placeholder="Your note..." rows="3"></textarea>
+      <button type="submit">Save</button>
+    </form>
+    <p id="note-msg" class="hint"></p>
+    <section id="notes-list"></section>
+
+    <h2>Open a link</h2>
+    <p class="subtle">Enter a URL and you'll be taken there.</p>
+    <form id="redirect-form">
+      <input type="text" id="redirect-url" placeholder="https://example.com/..." required>
+      <button>Go</button>
+    </form>
+
+    <h2>Quick Poll</h2>
+    <p class="subtle">Pick a topic from the dropdown and hit <strong>Submit</strong> to see your selection below.</p>
+    <form id="dropdown-form">
+      <label for="topic-select">Select a topic
+        <select id="topic-select">
+          <option value="" disabled selected>— choose one —</option>
+          <option value="SQL Injection">SQL Injection</option>
+          <option value="Cross-Site Scripting (XSS)">Cross-Site Scripting (XSS)</option>
+          <option value="CORS Misconfiguration">CORS Misconfiguration</option>
+          <option value="Insecure Direct Object Reference">Insecure Direct Object Reference</option>
+          <option value="Server-Side Request Forgery (SSRF)">Server-Side Request Forgery (SSRF)</option>
+          <option value="Broken Authentication">Broken Authentication</option>
+          <option value="Security Misconfiguration">Security Misconfiguration</option>
+          <option value="Sensitive Data Exposure">Sensitive Data Exposure</option>
+          <option value="XML External Entity (XXE)">XML External Entity (XXE)</option>
+          <option value="Insecure Deserialization">Insecure Deserialization</option>
+        </select>
+      </label>
+      <button type="submit">Submit</button>
+    </form>
+
+    <footer id="dropdown-result" class="dropdown-result" hidden>
+      <p class="eyebrow" style="margin-bottom:6px">SUBMITTED SELECTION</p>
+      <p id="dropdown-output"></p>
+    </footer>
+  </main>
+  <script src="/notes.js"></script>
+</body>
+</html>

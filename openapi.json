@@ -1,0 +1,436 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Vuln Notes CTF API",
+    "description": "API documentation for the intentionally vulnerable Vuln Notes CTF challenge. This application contains deliberate security vulnerabilities for educational practice, including reflected CORS with credentials, SQL injection in the authentication endpoint, raw SQL query disclosure in error and debug responses, and client-controlled authorization via the X-User header.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Local CTF server"
+    },
+    {
+      "url": "/",
+      "description": "Relative server root"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Documentation",
+      "description": "API specification documents"
+    },
+    {
+      "name": "Authentication",
+      "description": "Authentication endpoints (vulnerable to SQL injection)"
+    },
+    {
+      "name": "Notes",
+      "description": "In-memory note management endpoints (vulnerable to header spoofing / broken access control)"
+    }
+  ],
+  "paths": {
+    "/openapi.json": {
+      "get": {
+        "tags": ["Documentation"],
+        "summary": "Retrieve OpenAPI specification",
+        "description": "Returns the complete OpenAPI 3.0 specification document for this CTF API in JSON format.",
+        "operationId": "getOpenApiSpec",
+        "responses": {
+          "200": {
+            "description": "The OpenAPI 3.0 JSON specification document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Sign in to account",
+        "description": "Authenticates user credentials against the SQLite database.\n\n**Intentional Vulnerabilities:**\n- **SQL Injection**: `username` and `password` are concatenated directly into the SQL query without parameterization or escaping.\n- **Information Disclosure**: Discloses the full SQL query in response bodies on failure (`401`), error (`500`), and success (`200`).",
+        "operationId": "loginUser",
+        "requestBody": {
+          "required": true,
+          "description": "User login credentials",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              },
+              "examples": {
+                "valid_player": {
+                  "summary": "Valid player credentials",
+                  "value": {
+                    "username": "player",
+                    "password": "welcome123"
+                  }
+                },
+                "valid_admin": {
+                  "summary": "Valid admin credentials",
+                  "value": {
+                    "username": "admin",
+                    "password": "super_secret_admin_password"
+                  }
+                },
+                "sqli_auth_bypass": {
+                  "summary": "SQL Injection authentication bypass",
+                  "value": {
+                    "username": "admin' --",
+                    "password": ""
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful. Returns user details and debug SQL query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginSuccessResponse"
+                },
+                "example": {
+                  "ok": true,
+                  "user": {
+                    "id": 1,
+                    "username": "admin",
+                    "role": "admin"
+                  },
+                  "debug": {
+                    "query": "SELECT id, username, role FROM users WHERE username = 'admin' --' AND password = ''"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials. Returns error message and discloses the executed SQL query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorWithQueryResponse"
+                },
+                "example": {
+                  "error": "Invalid credentials",
+                  "query": "SELECT id, username, role FROM users WHERE username = 'unknown' AND password = 'wrong'"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Database query syntax error. Discloses SQLite error message and executed query.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorWithQueryResponse"
+                },
+                "example": {
+                  "error": "SQLITE_ERROR: near \"'\": syntax error",
+                  "query": "SELECT id, username, role FROM users WHERE username = ''' AND password = ''"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notes": {
+      "get": {
+        "tags": ["Notes"],
+        "summary": "List user notes",
+        "description": "Retrieves the list of notes for the user identified by the `X-User` request header.\n\n**Intentional Vulnerabilities:**\n- **Broken Access Control / Header Spoofing**: There is no session or token authentication. Identity is completely trusted from the `X-User` header. Supplying `X-User: admin` grants access to admin notes.\n- **Flag Disclosure**: When `X-User` is `admin`, the response includes the CTF flag in `adminHint`.",
+        "operationId": "getNotes",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XUserHeader"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Notes retrieved successfully. If X-User is 'admin', adminHint contains the flag.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotesListResponse"
+                },
+                "examples": {
+                  "guest_response": {
+                    "summary": "Guest user notes response",
+                    "value": {
+                      "owner": "guest",
+                      "notes": []
+                    }
+                  },
+                  "admin_response": {
+                    "summary": "Admin user notes response (Flag disclosure)",
+                    "value": {
+                      "owner": "admin",
+                      "notes": [
+                        {
+                          "id": 1695643200000,
+                          "owner": "admin",
+                          "text": "Flag stored in environment variables.",
+                          "createdAt": "2026-09-30T06:30:00.000Z"
+                        }
+                      ],
+                      "adminHint": "CTF{cors_sqli_and_design_failures}"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Notes"],
+        "summary": "Create a new note",
+        "description": "Creates a new note associated with the identity supplied in the `X-User` header.\n\n**Intentional Vulnerabilities:**\n- **Identity Spoofing**: Any caller can create notes under any username by setting `X-User`.\n- **Stored XSS**: Note text is not HTML-sanitized on the backend and is rendered using `innerHTML` on the client (`notes.js`).",
+        "operationId": "createNote",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/XUserHeader"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "description": "Note content to be stored",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNoteRequest"
+              },
+              "example": {
+                "text": "Example note for CTF practice."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Note created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                },
+                "example": {
+                  "id": 1695643200000,
+                  "owner": "player",
+                  "text": "Example note for CTF practice.",
+                  "createdAt": "2026-09-30T06:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation failed (missing or empty note text)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimpleErrorResponse"
+                },
+                "example": {
+                  "error": "A note needs text."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "XUserHeader": {
+        "name": "X-User",
+        "in": "header",
+        "required": false,
+        "description": "Client-controlled username header determining identity and note ownership. Defaults to 'guest' if omitted. Set to 'admin' to reveal the CTF flag.",
+        "schema": {
+          "type": "string",
+          "default": "guest",
+          "example": "admin"
+        }
+      }
+    },
+    "schemas": {
+      "LoginRequest": {
+        "type": "object",
+        "description": "Credentials for user sign-in",
+        "properties": {
+          "username": {
+            "type": "string",
+            "description": "Account username (interpolated into SQL query)",
+            "example": "player"
+          },
+          "password": {
+            "type": "string",
+            "description": "Account password (interpolated into SQL query)",
+            "example": "welcome123"
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "description": "User account representation",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Database user ID",
+            "example": 1
+          },
+          "username": {
+            "type": "string",
+            "description": "User handle",
+            "example": "admin"
+          },
+          "role": {
+            "type": "string",
+            "description": "User role ('admin' or 'user')",
+            "example": "admin"
+          }
+        },
+        "required": ["id", "username", "role"]
+      },
+      "LoginSuccessResponse": {
+        "type": "object",
+        "description": "Successful authentication response",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "example": true
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "debug": {
+            "type": "object",
+            "description": "Debug information disclosing the executed SQL query",
+            "properties": {
+              "query": {
+                "type": "string",
+                "description": "The exact SQL query executed against the database",
+                "example": "SELECT id, username, role FROM users WHERE username = 'admin' AND password = 'super_secret_admin_password'"
+              }
+            },
+            "required": ["query"]
+          }
+        },
+        "required": ["ok", "user", "debug"]
+      },
+      "ErrorWithQueryResponse": {
+        "type": "object",
+        "description": "Error response disclosing the SQL query",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Description of the error",
+            "example": "Invalid credentials"
+          },
+          "query": {
+            "type": "string",
+            "description": "The raw SQL query string sent to SQLite",
+            "example": "SELECT id, username, role FROM users WHERE username = 'foo' AND password = 'bar'"
+          }
+        },
+        "required": ["error", "query"]
+      },
+      "SimpleErrorResponse": {
+        "type": "object",
+        "description": "Generic error response",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Error message",
+            "example": "A note needs text."
+          }
+        },
+        "required": ["error"]
+      },
+      "CreateNoteRequest": {
+        "type": "object",
+        "description": "Payload for note creation",
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Body text of the note (max 500 characters)",
+            "example": "Exploiting reflected CORS headers."
+          }
+        },
+        "required": ["text"]
+      },
+      "Note": {
+        "type": "object",
+        "description": "A single note object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Timestamp-based ID of the note",
+            "example": 1695643200000
+          },
+          "owner": {
+            "type": "string",
+            "description": "Username owner from X-User header",
+            "example": "admin"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "The note content",
+            "example": "Exploiting reflected CORS headers."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "ISO timestamp when the note was created",
+            "example": "2026-09-30T06:30:00.000Z"
+          }
+        },
+        "required": ["id", "owner", "text", "createdAt"]
+      },
+      "NotesListResponse": {
+        "type": "object",
+        "description": "List of notes and optional admin hint",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "description": "The username queried (from X-User)",
+            "example": "admin"
+          },
+          "notes": {
+            "type": "array",
+            "description": "Notes associated with this owner",
+            "items": {
+              "$ref": "#/components/schemas/Note"
+            }
+          },
+          "adminHint": {
+            "type": "string",
+            "description": "CTF flag disclosed only when X-User is 'admin'",
+            "example": "CTF{cors_sqli_and_design_failures}"
+          }
+        },
+        "required": ["owner", "notes"]
+      }
+    },
+    "securitySchemes": {
+      "UserHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-User",
+        "description": "Custom identity header. Insecure design: caller controls identity without verification."
+      }
+    }
+  }
+}

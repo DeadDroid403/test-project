@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vuln Notes — CTF Lab</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="card login-card">
+    <p class="eyebrow">TRAINING LAB</p>
+    <h1>Vuln Notes</h1>
+    <p class="subtle">Sign in to your temporary note space.</p>
+    <form id="login-form">
+      <label>Username <input id="username" autocomplete="username" required></label>
+      <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+      <button>Sign in</button>
+    </form>
+    <pre id="message" aria-live="polite"></pre>
+  </main>
+  <script src="/login.js"></script>
+</body>
+</html>
