@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Home</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <main class="card">
+      <header class="topbar">
+        <span>Signed in as <strong>{{ username }}</strong></span>
+        <form action="{{ url_for('logout') }}" method="post">
+          <button type="submit" class="link-button">Log out</button>
+        </form>
+      </header>
+
+      <h1>Notepad</h1>
+      <p>Write a quick note and the server will render it back to you.</p>
+
+      <form action="{{ url_for('home') }}" method="post">
+        <label for="note">Note</label>
+        <input id="note" name="note" type="text" required autofocus>
+        <button type="submit">Render</button>
+      </form>
+
+      {% if rendered %}
+      {{ rendered | safe }}
+      {% endif %}
+    </main>
+  </body>
+</html>

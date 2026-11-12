@@ -1,11 +1,20 @@
 services:
-  vuln-notes:
+  ssti-challenge:
     build: .
-    ports:
-      - "3000:3000"
+    container_name: beginner-ssti-ctf
     environment:
-      - FLAG=CTF{cors_sqli_and_design_failures}
-    volumes:
-      # Mount only runme.js so you can edit it on the host and the change is
-      # served immediately — no container restart or rebuild needed.
-      - ./public/runme.js:/app/public/runme.js
+      FLAG: CTF{beginner_ssti_success}
+      # Set a fixed key so sessions survive container restarts.
+      SECRET_KEY: change-me-to-a-long-random-string
+      # Default credentials (no registration, no database):
+      #   username: player
+      #   password: passwd123
+      CTF_USERNAME: player
+      CTF_PASSWORD: passwd123
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
